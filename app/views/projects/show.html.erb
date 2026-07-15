@@ -23,6 +23,42 @@
 
 <h2><%=l(:label_overview)%></h2>
 
+<!-- Rally-style Stat Cards for Project Overview -->
+<% if User.current.allowed_to?(:view_issues, @project) %>
+<% total_issues = @total_issues_by_tracker.values.sum %>
+<% open_issues = @open_issues_by_tracker.values.sum %>
+<% closed_issues = total_issues - open_issues %>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px;">
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= total_issues %></div>
+    <div class="stat-label">Total Items</div>
+  </div>
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= open_issues %></div>
+    <div class="stat-label">Open</div>
+  </div>
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= closed_issues %></div>
+    <div class="stat-label">Closed</div>
+  </div>
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= total_issues > 0 ? number_to_percentage(closed_issues * 100.0 / total_issues, precision: 0) : '0%' %></div>
+    <div class="stat-label">Completion</div>
+    <div class="progress" style="margin-top: 8px; width: 100%;">
+      <div class="bar closed" style="width: <%= total_issues > 0 ? (closed_issues * 100.0 / total_issues) : 0 %>%;"></div>
+    </div>
+  </div>
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= @project.members.active.count %></div>
+    <div class="stat-label">Team Members</div>
+  </div>
+  <div class="rally-stat-card">
+    <div class="stat-value"><%= @project.versions.visible.count %></div>
+    <div class="stat-label">Sprints</div>
+  </div>
+</div>
+<% end %>
+
 <div class="splitcontent">
 <div class="splitcontentleft">
   <% if @project.description.present? %>

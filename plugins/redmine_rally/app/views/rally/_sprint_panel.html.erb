@@ -1,0 +1,119 @@
+<%# Sprint Panel Partial
+    Locals: sprint, issues, progress, is_active, velocity_data, members
+-%>
+<div class="sprint-panel <%= is_active ? 'active' : '' %>">
+  <div class="sprint-panel-header" data-sprint-id="<%= sprint.id %>">
+    <div class="sprint-panel-title-group">
+      <div class="sprint-panel-chevron">&#9660;</div>
+      <div>
+        <div class="sprint-panel-name">
+          <% if is_active %>
+            <span class="rally-sprint-indicator active"></span>
+          <% end %>
+          <%= sprint.name %>
+        </div>
+        <div class="sprint-panel-dates">
+          <%= l(:rally_sprints_start_date) %>: <%= l(sprint.start_date) if sprint.start_date %>
+          &mdash;
+          <%= l(:rally_sprints_end_date) %>: <%= l(sprint.effective_date) if sprint.effective_date %>
+        </div>
+      </div>
+    </div>
+    <div>
+      <span class="sprint-panel-status <%= is_active ? 'active' : 'planning' %>">
+        <%= is_active ? l(:rally_sprints_active) : l(:rally_sprints_planning) %>
+      </span>
+    </div>
+  </div>
+
+  <div class="sprint-panel-body">
+    <% if is_active %>
+      <div class="sprint-progress-section">
+        <div class="sprint-progress-header">
+          <span><%= l(:rally_sprints_progress) %></span>
+          <span><%= number_to_percentage(progress, :precision => 1) %></span>
+        </div>
+        <div class="sprint-progress-bar">
+          <div class="sprint-progress-fill <%= progress < 25 ? 'low' : '' %>" style="width: <%= progress %>%;"></div>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="sprint-stats-row">
+      <div class="sprint-stat">
+        <span class="sprint-stat-value"><%= issues.size %></span>
+        <span class="sprint-stat-label"><%= l(:rally_dashboard_total_stories) %></span>
+      </div>
+      <div class="sprint-stat">
+        <% done = issues.select { |i| i.status.is_closed? }.size %>
+        <span class="sprint-stat-value"><%= done %></span>
+        <span class="sprint-stat-label"><%= l(:rally_sprints_points_completed) %></span>
+      </div>
+      <div class="sprint-stat">
+        <% remaining = issues.size - done %>
+        <span class="sprint-stat-value"><%= remaining %></span>
+        <span class="sprint-stat-label"><%= l(:rally_dashboard_open_issues) %></span>
+      </div>
+      <% if sprint.effective_date %>
+        <div class="sprint-stat">
+          <% days_left = (sprint.effective_date - Date.today).to_i %>
+          <span class="sprint-stat-value <%= days_left < 3 ? '' : '' %>" style="<%= 'color: #ff5630;' if days_left < 0 %>"><%= days_left %></span>
+          <span class="sprint-stat-label"><%= l(:rally_sprints_days_remaining) %></span>
+        </div>
+      <% end %>
+    </div>
+
+    <% if issues.any? %>
+      <h4 style="font-size: 13px; font-weight: 600; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px 0;">
+        <%= l(:rally_sprints_drag_to_reorder) %>
+      </h4>
+      <ul class="sprint-backlog-list">
+        <% issues.each do |issue| %>
+          <li class="sprint-backlog-item" data-issue-id="<%= issue.id %>">
+            <div class="backlog-drag-handle" style="margin-right: 10px;">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="backlog-type-icon <%= issue.tracker.name.downcase.gsub(/\s+/, '-') %>" style="width: 20px; height: 20px; font-size: 10px;">
+              <%= issue.tracker.name.first.upcase %>
+            </span>
+            <span class="backlog-item-id" style="margin-right: 8px;"><%= issue.id %></span>
+            <span style="flex: 1; font-size: 13px;"><%= link_to issue.subject, issue_path(issue) %></span>
+            <span class="backlog-status-badge status-<%= status_css_class(issue.status) %>">
+              <%= issue.status.name %>
+            </span>
+            <% if issue.assigned_to %>
+              <span style="margin-left: 10px;">
+                <%= avatar(issue.assigned_to, :size => 18) %>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="kanban-column-empty">
+        <div class="empty-icon">📦</div>
+        <div><%= l(:rally_sprints_no_issues_in_sprint) %></div>
+      </div>
+    <% end %>
+
+    <% if is_active && members.present? %>
+      <div class="sprint-capacity">
+        <h4><%= l(:rally_sprints_team_capacity) %></h4>
+        <% max_issues = [issues.group_by(&:assigned_to_id).map { |_, v| v.size }.max, 1].max %>
+        <% members.each do |member| %>
+          <% member_issues = issues.select { |i| i.assigned_to_id == member.id } %>
+          <% member_count = member_issues.size %>
+          <% usage_pct = ((member_count.to_f / max_issues) * 100).round %>
+          <div class="capacity-member-row">
+            <%= avatar(member, :size => 24) %>
+            <span style="flex-shrink: 0; font-size: 13px; min-width: 100px;"><%= member.name %></span>
+            <div class="capacity-bar">
+              <div class="capacity-bar-fill <%= member_count > max_issues * 0.8 ? 'over' : '' %>" style="width: <%= usage_pct %>%"></div>
+            </div>
+            <span style="font-size: 12px; color: #5e6c84; flex-shrink: 0; min-width: 50px; text-align: right;"><%= member_count %> issues</span>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

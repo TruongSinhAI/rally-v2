@@ -1,0 +1,84 @@
+<%# Kanban Column Partial
+    Locals: status, issues, color, wip_limit
+-%>
+<div class="kanban-column" data-status-id="<%= status.id %>" data-wip-limit="<%= wip_limit.to_i %>">
+  <div class="kanban-column-header">
+    <div class="kanban-column-title">
+      <span class="kanban-column-color" style="background: <%= color %>;"></span>
+      <span><%= status.name %></span>
+      <span class="kanban-count-badge"><%= issues.size %></span>
+      <% if wip_limit.to_i > 0 %>
+        <span class="kanban-wip-limit <%= issues.size > wip_limit.to_i ? 'exceeded' : '' %>">/ <%= wip_limit %></span>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="cards-container">
+    <% if issues.empty? %>
+      <div class="kanban-column-empty">
+        <div class="empty-icon">📋</div>
+        <div><%= l(:rally_kanban_column_empty_state) %></div>
+      </div>
+    <% else %>
+      <% issues.each do |issue| %>
+        <div class="kanban-card <%= "priority-#{issue.priority.try(:name).to_s.downcase.gsub(/\s+/, '-')}" %>"
+             data-issue-id="<%= issue.id %>"
+             data-status-id="<%= issue.status_id %>"
+             data-original-column=".kanban-column[data-status-id='<%= issue.status_id %>'] .cards-container">
+          <div class="kanban-card-header">
+            <span class="kanban-card-id"><%= issue.id %></span>
+            <span class="kanban-card-type-icon <%= issue.tracker.name.downcase.gsub(/\s+/, '-') %>" title="<%= issue.tracker.name %>">
+              <%= issue.tracker.name.first.upcase %>
+            </span>
+          </div>
+          <div class="kanban-card-title"><%= link_to issue.subject, issue_path(issue) %></div>
+          <div class="kanban-card-footer">
+            <div class="kanban-card-meta">
+              <% if issue.assigned_to %>
+                <span class="kanban-card-assignee">
+                  <%= avatar(issue.assigned_to, :size => 18) %>
+                  <span><%= issue.assigned_to.name %></span>
+                </span>
+              <% end %>
+              <% if issue.priority %>
+                <span class="kanban-card-priority-dot" style="background: <%= priority_dot_color(issue.priority) %>" title="<%= issue.priority.name %>"></span>
+              <% end %>
+            </div>
+            <% sp = story_points_for(issue) %>
+            <% if sp.to_i > 0 %>
+              <span class="kanban-card-points" title="<%= l(:rally_kanban_story_points) %>"><%= sp %></span>
+            <% end %>
+          </div>
+          <% tags = issue.tag_list rescue [] %>
+          <% if tags.present? %>
+            <div class="kanban-card-tags">
+              <% tags.each do |tag| %>
+                <span class="kanban-card-tag"><%= tag %></span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <% if User.current.allowed_to?(:manage_rally, @project) %>
+      <div class="kanban-quick-add">
+        <button class="rally-quick-add-btn">+ <%= l(:rally_kanban_quick_add) %></button>
+        <div class="rally-quick-add-form" style="display: none;" data-project-id="<%= @project.id %>">
+          <input type="text" name="subject" placeholder="<%= l(:rally_kanban_add_story) %>" autocomplete="off">
+          <% if @trackers.present? %>
+            <select name="tracker_id">
+              <% @trackers.each do |t| %>
+                <option value="<%= t.id %>"><%= t.name %></option>
+              <% end %>
+            </select>
+          <% end %>
+          <div class="form-actions">
+            <button class="btn-cancel"><%= l(:rally_backlog_cancel) %></button>
+            <button class="btn-primary"><%= l(:rally_backlog_save) %></button>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

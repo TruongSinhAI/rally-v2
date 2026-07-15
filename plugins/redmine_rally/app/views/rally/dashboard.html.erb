@@ -1,0 +1,285 @@
+<%#
+  Dashboard - Full page view
+  Locals from controller: @project, @total_issues, @open_issues, @closed_issues,
+                          @sprints, @current_sprint, @members, @closed_this_sprint,
+                          @velocity, @avg_velocity, @recent_activity, @upcoming_deadlines,
+                          @sprint_progress, @burndown_data
+-%>
+<div class="rally-page">
+  <div class="rally-header">
+    <h2><%= l(:rally_dashboard_title) %> &mdash; <%= @project.name %></h2>
+    <div class="rally-header-actions">
+      <% if @current_sprint %>
+        <span style="font-size: 13px; color: #5e6c84;">
+          <span class="rally-sprint-indicator active"></span>
+          <%= @current_sprint.name %>
+        </span>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="rally-body">
+    <%# Stat Cards Row %>
+    <div class="rally-dashboard-grid">
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '📊',
+            :icon_class => 'blue',
+            :value => @total_issues,
+            :label => l(:rally_dashboard_total_stories),
+            :trend => nil,
+            :trend_class => nil
+          } %>
+
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '🔔',
+            :icon_class => 'orange',
+            :value => @open_issues,
+            :label => l(:rally_dashboard_open_issues),
+            :trend => "#{@total_issues > 0 ? number_to_percentage((@open_issues.to_f / @total_issues) * 100, :precision => 0) : '0%'}",
+            :trend_class => @open_issues > @total_issues * 0.6 ? 'up' : 'stable'
+          } %>
+
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '✅',
+            :icon_class => 'green',
+            :value => @closed_this_sprint,
+            :label => l(:rally_dashboard_closed_this_sprint),
+            :trend => '+7d',
+            :trend_class => 'up'
+          } %>
+
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '🚀',
+            :icon_class => 'purple',
+            :value => @avg_velocity,
+            :label => "#{l(:rally_dashboard_team_velocity)} (#{l(:rally_dashboard_points_per_sprint)})",
+            :trend => nil,
+            :trend_class => nil
+          } %>
+
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '📈',
+            :icon_class => 'blue',
+            :value => "#{number_to_percentage(@sprint_progress, :precision => 0)}",
+            :label => l(:rally_dashboard_sprint_progress),
+            :trend => @sprint_progress > 50 ? 'on track' : 'behind',
+            :trend_class => @sprint_progress > 50 ? 'up' : 'down'
+          } %>
+
+      <%= render :partial => 'rally/stat_card', :locals => {
+            :icon => '⏰',
+            :icon_class => 'red',
+            :value => @upcoming_deadlines.size,
+            :label => l(:rally_dashboard_upcoming_deadlines),
+            :trend => nil,
+            :trend_class => nil
+          } %>
+    </div>
+
+    <%# Charts Row %>
+    <div class="rally-dashboard-charts">
+      <%# Burndown Chart %>
+      <div class="rally-chart-container">
+        <h3><%= l(:rally_dashboard_burndown_chart) %></h3>
+        <% if @burndown_data.present? && @burndown_data.size > 1 %>
+          <div style="position: relative; height: 240px;">
+            <svg width="100%" height="240" viewBox="0 0 500 220" preserveAspectRatio="none" style="overflow: visible;">
+              <% max_val = [@burndown_data.map { |d| d[:remaining] }.max, 1].max %>
+              <% points = @burndown_data.size %>
+              <% step_x = 460.0 / [points - 1, 1].max %>
+
+              <%# Ideal burndown line (diagonal from top-left to bottom-right) %>
+              <line x1="20" y1="10" x2="480" y2="200" stroke="#ebecf0" stroke-width="2" stroke-dasharray="6,4"/>
+
+              <%# Actual burndown path %>
+              <% path_d = "M" %>
+              <% @burndown_data.each_with_index do |d, i| %>
+                <% x = 20 + i * step_x %>
+                <% y = 200 - (d[:remaining].to_f / max_val * 190) %>
+                <% path_d += "#{x.round(1)},#{y.round(1)} " %>
+              <% end %>
+              <path d="<%= path_d.strip %>" fill="none" stroke="#1a73e8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+              <%# Fill area under curve %>
+              <% fill_d = path_d.strip + " L#{(20 + (points - 1) * step_x).round(1)},200 L20,200 Z" %>
+              <path d="<%= fill_d %>" fill="rgba(26,115,232,0.08)"/>
+
+              <%# X-axis date labels (show a few) %>
+              <% label_step = [points / 5, 1].max %>
+              <% @burndown_data.each_with_index do |d, i| %>
+                <% next unless i % label_step == 0 || i == points - 1 %>
+                <% x = 20 + i * step_x %>
+                <text x="<%= x.round(1) %>" y="216" text-anchor="middle" font-size="9" fill="#97a0af" font-family="sans-serif">
+                  <%= l(d[:date].to_date, :format => :short) rescue d[:date] %>
+                </text>
+              <% end %>
+
+              <%# Y-axis labels %>
+              <text x="16" y="204" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif">0</text>
+              <text x="16" y="110" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif"><%= (max_val / 2).round %></text>
+              <text x="16" y="16" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif"><%= max_val.round %></text>
+
+              <%# Grid lines %>
+              <line x1="20" y1="200" x2="480" y2="200" stroke="#ebecf0" stroke-width="1"/>
+              <line x1="20" y1="105" x2="480" y2="105" stroke="#ebecf0" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="20" y1="10" x2="480" y2="10" stroke="#ebecf0" stroke-width="1" stroke-dasharray="4,4"/>
+            </svg>
+          </div>
+        <% else %>
+          <div class="rally-chart-placeholder">
+            <%= @current_sprint ? l(:rally_sprints_burndown) : l(:rally_sprints_no_sprints) %>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Velocity Chart %>
+      <div class="rally-chart-container">
+        <h3><%= l(:rally_dashboard_velocity_trend) %></h3>
+        <% if @velocity.present? && @velocity.size > 0 %>
+          <div style="position: relative; height: 240px;">
+            <svg width="100%" height="240" viewBox="0 0 500 220" preserveAspectRatio="none" style="overflow: visible;">
+              <% max_v = [@velocity.map { |v| v[:points] }.max, 1].max %>
+              <% v_count = @velocity.size %>
+              <% v_step = 460.0 / [v_count, 1].max %>
+              <% bar_w = [v_step * 0.6, 20].min %>
+
+              <% @velocity.each_with_index do |v, i| %>
+                <% x = 20 + i * v_step + (v_step - bar_w) / 2 %>
+                <% h = (v[:points].to_f / max_v * 180).round %>
+                <rect x="<%= x.round(1) %>" y="<%= 200 - h %>" width="<%= bar_w.round(1) %>" height="<%= h %>"
+                      fill="<%= v == @velocity.last ? '#36b37e' : '#1a73e8' %>" rx="3" opacity="0.85">
+                  <title><%= v[:name] %>: <%= v[:points].round(1) %> pts</title>
+                </rect>
+                <text x="<%= (x + bar_w / 2).round(1) %>" y="216" text-anchor="middle" font-size="9" fill="#97a0af" font-family="sans-serif">
+                  <%= truncate(v[:name], :length => 10) %>
+                </text>
+                <% if h > 10 %>
+                  <text x="<%= (x + bar_w / 2).round(1) %>" y="<%= 196 - h %>" text-anchor="middle" font-size="10" fill="#172b4d" font-weight="600" font-family="sans-serif">
+                    <%= v[:points].round(1) %>
+                  </text>
+                <% end %>
+              <% end %>
+
+              <%# Average line %>
+              <% avg_y = 200 - (@avg_velocity.to_f / max_v * 180) %>
+              <line x1="20" y1="<%= avg_y.round(1) %>" x2="480" y2="<%= avg_y.round(1) %>"
+                    stroke="#ff991f" stroke-width="1.5" stroke-dasharray="6,4"/>
+              <text x="482" y="<%= (avg_y - 4).round(1) %>" font-size="9" fill="#ff991f" font-family="sans-serif">
+                avg: <%= @avg_velocity %>
+              </text>
+
+              <%# Y-axis %>
+              <text x="16" y="204" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif">0</text>
+              <text x="16" y="110" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif"><%= (max_v / 2).round %></text>
+              <text x="16" y="16" text-anchor="end" font-size="9" fill="#97a0af" font-family="sans-serif"><%= max_v.round %></text>
+              <line x1="20" y1="200" x2="480" y2="200" stroke="#ebecf0" stroke-width="1"/>
+            </svg>
+          </div>
+        <% else %>
+          <div class="rally-chart-placeholder">
+            <%= l(:rally_sprints_no_sprints) %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Bottom Row: Activity + Deadlines + Workload %>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+      <%# Recent Activity %>
+      <div class="rally-activity-feed">
+        <div class="rally-activity-feed-header"><%= l(:rally_dashboard_recent_activity) %></div>
+        <% if @recent_activity.any? %>
+          <% @recent_activity.each do |journal| %>
+            <div class="rally-activity-item">
+              <% if journal.user %>
+                <%= avatar(journal.user, :size => 32, :class => 'rally-activity-avatar') %>
+              <% end %>
+              <div class="rally-activity-content">
+                <div class="rally-activity-text">
+                  <% if journal.user %>
+                    <strong><%= journal.user.name %></strong>
+                  <% end %>
+                  <%= 'updated' %>
+                  <% if journal.journalized %>
+                    <strong><%= link_to("##{journal.journalized.id} #{truncate(journal.journalized.subject, :length => 40)}", issue_path(journal.journalized)) %></strong>
+                  <% end %>
+                  <% detail = journal.details.first %>
+                  <% if detail %>
+                    <span style="color: #5e6c84; font-size: 12px;">
+                      &mdash; <%= detail.prop_key %> <%= detail.old_value %> &rarr; <%= detail.value %>
+                    </span>
+                  <% end %>
+                </div>
+                <div class="rally-activity-time"><%= time_ago_in_words(journal.created_on) %> ago</div>
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="rally-activity-empty"><%= l(:rally_dashboard_no_activity) %></div>
+        <% end %>
+      </div>
+
+      <%# Upcoming Deadlines %>
+      <div class="rally-deadlines-panel">
+        <div class="rally-deadlines-panel-header"><%= l(:rally_dashboard_upcoming_deadlines) %></div>
+        <% if @upcoming_deadlines.any? %>
+          <% @upcoming_deadlines.each do |issue| %>
+            <div class="deadline-item">
+              <div>
+                <div style="font-size: 13px; font-weight: 500;">
+                  <%= link_to("##{issue.id} #{truncate(issue.subject, :length => 35)}", issue_path(issue)) %>
+                </div>
+                <% if issue.assigned_to %>
+                  <div style="font-size: 11px; color: #5e6c84; margin-top: 2px;"><%= issue.assigned_to.name %></div>
+                <% end %>
+              </div>
+              <span class="deadline-date <%= deadline_css_class(issue.due_date) %>">
+                <%= l(issue.due_date, :format => :short) %>
+              </span>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="rally-activity-empty"><%= l(:rally_dashboard_no_deadlines) %></div>
+        <% end %>
+      </div>
+
+      <%# Team Workload %>
+      <div class="rally-workload-panel">
+        <div class="rally-workload-panel-header"><%= l(:rally_dashboard_team_workload) %></div>
+        <% if @members.present? %>
+          <% open_issues_by_assignee = @project.issues.visible.where(closed_on: nil).group(:assigned_to_id).count %>
+          <% max_load = [open_issues_by_assignee.values.max, 1].max %>
+          <% @members.each do |member| %>
+            <% count = open_issues_by_assignee[member.id] || 0 %>
+            <% pct = (count.to_f / max_load * 100).round %>
+            <% css_class = count > max_load * 0.8 ? 'heavy' : (count > max_load * 0.5 ? 'moderate' : 'healthy') %>
+            <div class="workload-member">
+              <%= avatar(member, :size => 24) %>
+              <div class="workload-bar-wrapper">
+                <div style="font-size: 12px; font-weight: 500;"><%= member.name %></div>
+                <div class="workload-bar">
+                  <div class="workload-bar-fill <%= css_class %>" style="width: <%= pct %>%"></div>
+                </div>
+              </div>
+              <span class="workload-count"><%= count %></span>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="rally-activity-empty"><%= l(:rally_sprints_no_sprints) %></div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'rally_plugin', :plugin => 'redmine_rally' %>
+  <%= javascript_include_tag 'rally_kanban', :plugin => 'redmine_rally' %>
+  <style>
+    @media (max-width: 1024px) {
+      .rally-page .rally-body > div:last-child {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
+<% end %>

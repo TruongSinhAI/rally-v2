@@ -3,3 +3,75 @@
 
 <%= render_sidebar_queries(IssueQuery, @project) %>
 <%= call_hook(:view_issues_sidebar_queries_bottom) %>
+
+<% if @project && User.current.logged? %>
+<% open_count = Issue.visible.open.where(project: @project).count %>
+<% closed_count = Issue.visible.where(project: @project).closed.count %>
+<% total = open_count + closed_count %>
+<h3><%= l(:label_issue_plural) %> Summary</h3>
+<div style="margin-bottom: 12px;">
+  <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px;">
+    <span>Progress</span>
+    <span><%= total > 0 ? number_to_percentage(closed_count * 100.0 / total, precision: 0) : '0%' %></span>
+  </div>
+  <div class="progress">
+    <div class="bar" style="width: <%= total > 0 ? (closed_count * 100.0 / total) : 0 %>%;" ></div>
+  </div>
+  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #999; margin-top: 4px;">
+    <span><%= open_count %> Open</span>
+    <span><%= closed_count %> Closed</span>
+  </div>
+</div>
+
+<% if User.current.allowed_to?(:view_issues, @project) %>
+<% trackers = @project.trackers.visible %>
+<% if trackers.any? %>
+<h3>By Tracker</h3>
+<ul>
+<% trackers.each do |tracker| %>
+  <% count = Issue.visible.open.where(project: @project, tracker: tracker).count %>
+  <li>
+    <a href="<%= project_issues_path(@project, set_filter: 1, tracker_id: tracker.id) %>" style="display: flex; justify-content: space-between; align-items: center;">
+      <span><%= tracker.name %></span>
+      <span class="badge badge-count"><%= count %></span>
+    </a>
+  </li>
+<% end %>
+</ul>
+<% end %>
+
+<% priorities = IssuePriority.active %>
+<% if priorities.any? %>
+<h3>By Priority</h3>
+<ul>
+<% priorities.each do |pri| %>
+  <% count = Issue.visible.open.where(project: @project, priority_id: pri.id).count %>
+  <% next if count == 0 %>
+  <li>
+    <a href="<%= project_issues_path(@project, set_filter: 1, priority_id: pri.id) %>" style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="priority-<%= pri.position %>"><%= pri.name %></span>
+      <span class="badge badge-count"><%= count %></span>
+    </a>
+  </li>
+<% end %>
+</ul>
+<% end %>
+
+<% assignees = @project.members.active.includes(:user).map(&:user).sort_by(&:name) %>
+<% if assignees.any? %>
+<h3>By Assignee</h3>
+<ul>
+<% assignees.each do |user| %>
+  <% count = Issue.visible.open.where(project: @project, assigned_to: user).count %>
+  <% next if count == 0 %>
+  <li>
+    <a href="<%= project_issues_path(@project, set_filter: 1, assigned_to_id: user.id) %>" style="display: flex; justify-content: space-between; align-items: center;">
+      <span><%= user.name %></span>
+      <span class="badge badge-count"><%= count %></span>
+    </a>
+  </li>
+<% end %>
+</ul>
+<% end %>
+<% end %>
+<% end %>

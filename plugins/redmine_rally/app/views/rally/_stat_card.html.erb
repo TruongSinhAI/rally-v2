@@ -1,0 +1,13 @@
+<%# Stat Card Partial
+    Locals: icon, icon_class, value, label, trend, trend_class
+-%>
+<div class="stat-card">
+  <div class="stat-card-header">
+    <div class="stat-card-icon <%= icon_class %>"><%= icon %></div>
+    <% if trend.present? %>
+      <span class="stat-card-trend <%= trend_class || 'stable' %>"><%= trend %></span>
+    <% end %>
+  </div>
+  <div class="stat-card-value"><%= value %></div>
+  <div class="stat-card-label"><%= label %></div>
+</div>

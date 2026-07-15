@@ -1,23 +1,70 @@
-<h2><%= l(:label_home) %></h2>
+<% content_for :sidebar do %>
+<div id="sidebar">
+  <h3>Navigation</h3>
+  <ul>
+    <li><a href="<%= home_path %>"><%= l(:label_home) %></a></li>
+    <li><a href="<%= my_page_path %>"><%= l(:label_my_page) %></a></li>
+    <li><a href="<%= projects_path %>"><%= l(:label_project_plural) %></a></li>
+  </ul>
 
-<div class="splitcontent">
-<div class="splitcontentleft">
-  <div class="wiki">
-    <%= textilizable Setting.welcome_text %>
-  </div>
-  <%= call_hook(:view_welcome_index_left) %>
+  <% if User.current.logged? %>
+  <h3><%= l(:label_my_queries) %></h3>
+  <%= render_sidebar_queries(IssueQuery, @project) %>
+  <% end %>
+
+  <h3><%= l(:label_project_plural) %></h3>
+  <ul>
+  <% User.current.projects.visible.each do |p| %>
+    <li><a href="<%= project_path(p) %>" class="<%= 'selected' if @project && @project.id == p.id %>"><%= p.name %></a></li>
+  <% end %>
+  </ul>
 </div>
+<% end %>
 
-<div class="splitcontentright">
-  <% if @news.any? %>
-  <div class="news box">
-  <h3 class="icon icon-news"><%= sprite_icon('news', l(:label_news_latest))%></h3>
-    <%= render :partial => 'news/news', :collection => @news %>
-    <%= link_to l(:label_news_view_all), :controller => 'news' %>
+<div id="content">
+  <h2><%= l(:label_home) %></h2>
+
+  <!-- Rally-style Stat Cards -->
+  <% if User.current.logged? %>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
+    <div class="rally-stat-card">
+      <div class="stat-value"><%= Issue.visible.open.where(assigned_to: User.current).count %></div>
+      <div class="stat-label">My Open Items</div>
+    </div>
+    <div class="rally-stat-card">
+      <div class="stat-value"><%= User.current.projects.visible.count %></div>
+      <div class="stat-label"><%= l(:label_project_plural) %></div>
+    </div>
+    <div class="rally-stat-card">
+      <div class="stat-value"><%= Issue.visible.where(assigned_to: User.current).closed.count %></div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="rally-stat-card">
+      <div class="stat-value"><%= User.current.projects.visible.flat_map { |p| p.members.active }.uniq.size %></div>
+      <div class="stat-label">Team Members</div>
+    </div>
   </div>
   <% end %>
-  <%= call_hook(:view_welcome_index_right) %>
-</div>
+
+  <div class="splitcontent">
+  <div class="splitcontentleft">
+    <div class="wiki">
+      <%= textilizable Setting.welcome_text %>
+    </div>
+    <%= call_hook(:view_welcome_index_left) %>
+  </div>
+
+  <div class="splitcontentright">
+    <% if @news.any? %>
+    <div class="news box">
+    <h3 class="icon icon-news"><%= sprite_icon('news', l(:label_news_latest))%></h3>
+      <%= render :partial => 'news/news', :collection => @news %>
+      <%= link_to l(:label_news_view_all), :controller => 'news' %>
+    </div>
+    <% end %>
+    <%= call_hook(:view_welcome_index_right) %>
+  </div>
+  </div>
 </div>
 
 <% content_for :header_tags do %>

@@ -1,0 +1,49 @@
+<%# Backlog Item Partial
+    Locals: issue, depth, rank
+-%>
+<li class="backlog-item depth-<%= depth.to_i %>" data-issue-id="<%= issue.id %>" data-rank="<%= rank %>">
+  <div class="backlog-drag-handle" title="<%= l(:rally_kanban_drag_to_move) %>">
+    <span></span><span></span><span></span>
+  </div>
+  <span class="backlog-rank-number"><%= rank %></span>
+  <span class="backlog-type-icon <%= issue.tracker.name.downcase.gsub(/\s+/, '-') %>" title="<%= issue.tracker.name %>">
+    <%= issue.tracker.name.first.upcase %>
+  </span>
+  <span class="backlog-item-id"><%= issue.id %></span>
+  <span class="backlog-item-title">
+    <%= link_to issue.subject, issue_path(issue) %>
+    <% if issue.children.visible.any? %>
+      <span class="backlog-children-toggle" data-toggle="children-<%= issue.id %>" title="<%= issue.children.visible.count %> <%= l(:rally_backlog_child_tasks) %>">
+        (<%= issue.children.visible.count %>)
+      </span>
+    <% end %>
+  </span>
+  <div class="backlog-item-meta">
+    <span class="meta-item">
+      <% if issue.priority %>
+        <span class="kanban-card-priority-dot" style="background: <%= priority_dot_color(issue.priority) %>" title="<%= issue.priority.name %>"></span>
+        <span><%= issue.priority.name %></span>
+      <% end %>
+    </span>
+    <span class="backlog-status-badge status-<%= status_css_class(issue.status) %>">
+      <%= issue.status.name %>
+    </span>
+    <% sp = story_points_for(issue) %>
+    <% if sp.to_i > 0 %>
+      <span class="kanban-card-points" title="<%= l(:rally_backlog_estimate) %>"><%= sp %></span>
+    <% end %>
+    <% if issue.assigned_to %>
+      <span class="kanban-card-assignee">
+        <%= avatar(issue.assigned_to, :size => 18) %>
+        <span><%= issue.assigned_to.name %></span>
+      </span>
+    <% end %>
+  </div>
+</li>
+<% if issue.children.visible.any? && depth.to_i < 2 %>
+  <ul class="rally-backlog-list backlog-children" id="children-<%= issue.id %>" style="display: none;">
+    <% issue.children.visible.each_with_index do |child, idx| %>
+      <%= render :partial => 'rally/backlog_item', :locals => { :issue => child, :depth => depth.to_i + 1, :rank => "#{rank}.#{idx + 1}" } %>
+    <% end %>
+  </ul>
+<% end %>

@@ -1,2 +1,69 @@
 <%= render_sidebar_queries(ProjectQuery, @project) %>
 <%= call_hook(:view_projects_sidebar_queries_bottom) %>
+
+<% if @project && User.current.logged? && User.current.allowed_to?(:view_issues, @project) %>
+<% open_count = Issue.visible.open.where(project: @project).count %>
+<% closed_count = Issue.visible.where(project: @project).closed.count %>
+<% total = open_count + closed_count %>
+
+<h3>Project Status</h3>
+<div style="margin-bottom: 16px;">
+  <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px;">
+    <span>Overall Progress</span>
+    <span><%= total > 0 ? number_to_percentage(closed_count * 100.0 / total, precision: 0) : '0%' %></span>
+  </div>
+  <div class="progress">
+    <div class="bar closed" style="width: <%= total > 0 ? (closed_count * 100.0 / total) : 0 %>%;"></div>
+  </div>
+  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #999; margin-top: 4px;">
+    <span><%= open_count %> Open</span>
+    <span><%= total %> Total</span>
+  </div>
+</div>
+
+<h3>Quick Navigation</h3>
+<ul>
+  <li><%= link_to 'Kanban Board', rally_kanban_path(@project) %></li>
+  <li><%= link_to 'Backlog', rally_backlog_path(@project) %></li>
+  <li><%= link_to 'Sprints', rally_sprints_path(@project) %></li>
+  <li><%= link_to 'Dashboard', rally_dashboard_path(@project) %></li>
+  <li><%= link_to l(:label_issue_plural), project_issues_path(@project, set_filter: 1) %></li>
+  <% if User.current.allowed_to?(:view_calendar, @project, global: true) %>
+  <li><%= link_to l(:label_calendar), project_calendar_path(@project) %></li>
+  <% end %>
+  <% if User.current.allowed_to?(:view_gantt, @project, global: true) %>
+  <li><%= link_to l(:label_gantt), project_gantt_path(@project) %></li>
+  <% end %>
+  <li><%= link_to l(:label_activity), project_activity_path(@project) %></li>
+</ul>
+
+<% sprints = @project.versions.visible %>
+<% if sprints.any? %>
+<h3>Sprints</h3>
+<ul>
+<% sprints.each do |v| %>
+  <li>
+    <a href="<%= project_issues_path(@project, set_filter: 1, fixed_version_id: v.id) %>">
+      <%= v.name %>
+      <% if v.effective_date %>
+        <span style="color: #999; font-size: 11px;">(<%= v.effective_date %>)</span>
+      <% end %>
+    </a>
+  </li>
+<% end %>
+</ul>
+<% end %>
+
+<% members = @project.members.active.includes(:user).map(&:user).sort_by(&:name) %>
+<% if members.any? %>
+<h3>Team (<%= members.size %>)</h3>
+<ul>
+<% members.each do |user| %>
+  <li style="display: flex; align-items: center; gap: 6px;">
+    <%= avatar(user, size: 16) %>
+    <a href="<%= user_path(user) %>"><%= user.name %></a>
+  </li>
+<% end %>
+</ul>
+<% end %>
+<% end %>

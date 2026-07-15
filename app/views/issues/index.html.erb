@@ -6,11 +6,9 @@
     <% if @project %>
       <%= link_to sprite_icon('summary', l(:field_summary)), project_issues_report_path(@project), :class => 'icon icon-stats' %>
     <% end %>
-
     <% if User.current.allowed_to?(:import_issues, @project, :global => true) && User.current.allowed_to?(:add_issues, @project, :global => true) %>
       <%= link_to sprite_icon('import', l(:button_import)), new_issues_import_path(:project_id => @project), :class => 'icon icon-import' %>
     <% end %>
-
     <%= link_to_if_authorized sprite_icon('settings', l(:label_settings)),
                               {:controller => 'projects', :action => 'settings', :id => @project, :tab => 'issues'},
                               :class => 'icon icon-settings' if User.current.allowed_to?(:edit_project, @project) %>
@@ -27,7 +25,11 @@
 
 <% if @query.valid? %>
 <% if @issues.empty? %>
-<p class="nodata"><%= l(:label_no_data) %></p>
+<div class="rally-empty-state">
+  <div class="empty-icon">&#128203;</div>
+  <div class="empty-text"><%= l(:label_no_data) %></div>
+  <div class="empty-hint">Try adjusting your filters or create a new item.</div>
+</div>
 <% else %>
 <%= render_query_totals(@query) %>
 <%= render :partial => 'issues/list', :locals => {:issues => @issues, :query => @query} %>

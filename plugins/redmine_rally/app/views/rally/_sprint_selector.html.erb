@@ -1,0 +1,20 @@
+<%# Sprint Selector Partial
+    Locals: sprints, selected_sprint, project
+-%>
+<div class="rally-sprint-selector">
+  <select data-rally-sprint-selector>
+    <option value="<%= rally_kanban_path(@project) %>"><%= l(:rally_kanban_all_items) %></option>
+    <% sprints.each do |sprint| %>
+      <option value="<%= rally_kanban_path(@project, :sprint_id => sprint.id) %>"
+              <%= 'selected' if selected_sprint && selected_sprint.id == sprint.id %>>
+        <% if sprint.effective_date && sprint.effective_date >= Date.today %>
+          <span class="rally-sprint-indicator active"></span>
+        <% end %>
+        <%= sprint.name %>
+        <% if sprint.start_date && sprint.effective_date %>
+          (<%= l(sprint.start_date, :format => :short) %> &ndash; <%= l(sprint.effective_date, :format => :short) %>)
+        <% end %>
+      </option>
+    <% end %>
+  </select>
+</div>

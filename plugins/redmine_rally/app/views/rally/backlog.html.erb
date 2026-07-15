@@ -1,0 +1,145 @@
+<%#
+  Backlog - Full page view
+  Locals from controller: @project, @backlog_issues, @trackers, @statuses, @priorities,
+                          @total_points, @new_issue
+-%>
+<div class="rally-page">
+  <div class="rally-header">
+    <h2><%= l(:rally_backlog_title) %> &mdash; <%= @project.name %></h2>
+    <div class="rally-header-actions">
+      <button class="rally-btn rally-btn-ghost" onclick="RallyBacklog.toggleAll(false)">
+        <%= l(:rally_backlog_collapse_all) %>
+      </button>
+      <button class="rally-btn rally-btn-ghost" onclick="RallyBacklog.toggleAll(true)">
+        <%= l(:rally_backlog_expand_all) %>
+      </button>
+      <a class="rally-btn rally-btn-primary" href="#" onclick="toggleQuickAddBacklog(); return false;">
+        + <%= l(:rally_backlog_quick_add_story) %>
+      </a>
+    </div>
+  </div>
+
+  <div class="rally-body">
+    <%# Search and Filter Bar %>
+    <form class="rally-filter-bar" method="get" action="<%= rally_backlog_path(@project) %>">
+      <div class="rally-filter-group" style="flex: 1;">
+        <input type="text" name="search" value="<%= params[:search].to_s %>"
+               placeholder="<%= l(:rally_backlog_search_placeholder) %>"
+               style="min-width: 240px;">
+      </div>
+
+      <div class="rally-filter-group">
+        <label><%= l(:rally_backlog_filter_status) %></label>
+        <select name="status_id" onchange="this.form.submit();">
+          <option value="">-- <%= l(:label_all) %> --</option>
+          <% @statuses.each do |s| %>
+            <option value="<%= s.id %>" <%= 'selected' if params[:status_id].to_s == s.id.to_s %>>
+              <%= s.name %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="rally-filter-group">
+        <label><%= l(:rally_backlog_filter_type) %></label>
+        <select name="tracker_id" onchange="this.form.submit();">
+          <option value="">-- <%= l(:label_all) %> --</option>
+          <% @trackers.each do |t| %>
+            <option value="<%= t.id %>" <%= 'selected' if params[:tracker_id].to_s == t.id.to_s %>>
+              <%= t.name %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+    </form>
+
+    <%# Quick Add Story Form (hidden by default) %>
+    <div id="backlog-quick-add" style="display: none; margin-bottom: 16px;">
+      <div class="rally-quick-add-form" style="display: block; animation: none;">
+        <%= form_for @new_issue, :url => project_issues_path(@project), :html => { :method => :post } do |f| %>
+          <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+            <div style="flex: 1;">
+              <%= f.text_field :subject, :placeholder => l(:rally_backlog_story_title), :style => 'width: 100%; padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit; box-sizing: border-box;' %>
+            </div>
+            <%= f.select :tracker_id, @trackers.map { |t| [t.name, t.id] }, {}, :style => 'padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit;' %>
+            <%= f.select :priority_id, @priorities.map { |p| [p.name, p.id] }, {}, :style => 'padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit;' %>
+            <button type="submit" class="rally-btn rally-btn-primary"><%= l(:rally_backlog_save) %></button>
+            <button type="button" class="rally-btn rally-btn-secondary" onclick="toggleQuickAddBacklog();"><%= l(:rally_backlog_cancel) %></button>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Backlog Container %>
+    <div class="rally-backlog-container">
+      <%# Toolbar %>
+      <div class="rally-backlog-toolbar">
+        <div class="rally-backlog-summary">
+          <span><strong><%= @backlog_issues.size %></strong> <%= l(:rally_backlog_total_items) %></span>
+          <% if @total_points > 0 %>
+            <span><strong><%= @total_points %></strong> <%= l(:rally_backlog_total_points) %></span>
+          <% end %>
+        </div>
+        <div class="rally-backlog-actions">
+          <span class="rally-btn rally-btn-ghost rally-view-toggle" data-view="hierarchical">
+            <%= l(:rally_backlog_hierarchical_view) %>
+          </span>
+          <span class="rally-btn rally-btn-ghost rally-view-toggle" data-view="flat">
+            <%= l(:rally_backlog_flat_view) %>
+          </span>
+        </div>
+      </div>
+
+      <%# Backlog List %>
+      <% if @backlog_issues.any? %>
+        <ul class="rally-backlog-list" data-update-rank-url="<%= rally_update_rank_path(@project) %>">
+          <% @backlog_issues.each_with_index do |issue, idx| %>
+            <%= render :partial => 'rally/backlog_item',
+                       :locals => {
+                         :issue => issue,
+                         :depth => 0,
+                         :rank => idx + 1
+                       } %>
+          <% end %>
+        </ul>
+      <% else %>
+        <div class="kanban-column-empty" style="padding: 60px 20px;">
+          <div class="empty-icon" style="font-size: 48px;">📋</div>
+          <div style="margin-top: 12px; font-size: 15px; color: #5e6c84;">
+            <%= l(:rally_backlog_no_backlog_items) %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'rally_plugin', :plugin => 'redmine_rally' %>
+  <%= javascript_include_tag 'rally_kanban', :plugin => 'redmine_rally' %>
+  <script type="text/javascript">
+    function toggleQuickAddBacklog() {
+      var el = document.getElementById('backlog-quick-add');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        el.querySelector('input[type="text"]').focus();
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // Toggle children on click
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.backlog-children-toggle')) {
+        var toggle = e.target.closest('.backlog-children-toggle');
+        var targetId = toggle.getAttribute('data-toggle');
+        var children = document.getElementById(targetId);
+        if (children) {
+          var isHidden = children.style.display === 'none';
+          children.style.display = isHidden ? 'block' : 'none';
+          toggle.style.fontWeight = isHidden ? '700' : '400';
+        }
+      }
+    });
+  </script>
+<% end %>

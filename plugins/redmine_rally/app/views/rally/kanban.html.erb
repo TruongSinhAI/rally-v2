@@ -1,0 +1,84 @@
+<%#
+  Kanban Board - Full page view
+  Locals from controller: @project, @statuses, @issues_by_status, @sprints, @selected_sprint,
+                          @assignees, @trackers, @priorities
+-%>
+<div class="rally-page">
+  <div class="rally-header">
+    <h2><%= l(:rally_kanban_title) %> &mdash; <%= @project.name %></h2>
+    <div class="rally-header-actions">
+      <%= render :partial => 'rally/sprint_selector', :locals => {
+            :sprints => @sprints,
+            :selected_sprint => @selected_sprint,
+            :project => @project
+          } %>
+    </div>
+  </div>
+
+  <div class="rally-body">
+    <%# Filter Bar %>
+    <form class="rally-filter-bar" method="get" action="<%= rally_kanban_path(@project) %>">
+      <input type="hidden" name="sprint_id" value="<%= params[:sprint_id] %>" if params[:sprint_id].present? %>
+
+      <div class="rally-filter-group">
+        <label for="filter_assignee"><%= l(:rally_kanban_filter_by_assignee) %></label>
+        <select id="filter_assignee" name="assignee_id" onchange="this.form.submit();">
+          <option value="">-- <%= l(:label_all) %> --</option>
+          <% @assignees.each do |u| %>
+            <option value="<%= u.id %>" <%= 'selected' if params[:assignee_id].to_s == u.id.to_s %>>
+              <%= u.name %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="rally-filter-group">
+        <label for="filter_tracker"><%= l(:rally_kanban_filter_by_type) %></label>
+        <select id="filter_tracker" name="tracker_id" onchange="this.form.submit();">
+          <option value="">-- <%= l(:label_all) %> --</option>
+          <% @trackers.each do |t| %>
+            <option value="<%= t.id %>" <%= 'selected' if params[:tracker_id].to_s == t.id.to_s %>>
+              <%= t.name %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="rally-filter-group">
+        <label for="filter_priority"><%= l(:rally_kanban_filter_by_priority) %></label>
+        <select id="filter_priority" name="priority_id" onchange="this.form.submit();">
+          <option value="">-- <%= l(:label_all) %> --</option>
+          <% @priorities.each do |p| %>
+            <option value="<%= p.id %>" <%= 'selected' if params[:priority_id].to_s == p.id.to_s %>>
+              <%= p.name %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+    </form>
+
+    <%# Kanban Board %>
+    <div class="rally-kanban-board"
+         data-update-status-url="<%= rally_update_status_path(@project) %>"
+         data-update-rank-url="<%= rally_update_rank_path(@project) %>">
+
+      <% status_colors = { 'New' => '#0065ff', 'To Do' => '#00b8d9', 'In Progress' => '#ff991f', 'Done' => '#36b37e', 'Closed' => '#36b37e', 'Rejected' => '#ff5630', 'Feedback' => '#6554c0', 'Resolved' => '#36b37e', 'Testing' => '#ffab00' } %>
+
+      <% @statuses.each do |status| %>
+        <% color = status_colors[status.name] || cycle('#0065ff', '#ff991f', '#36b37e', '#6554c0', '#00b8d9', '#ff5630') %>
+        <%= render :partial => 'rally/kanban_column',
+                   :locals => {
+                     :status => status,
+                     :issues => @issues_by_status[status.id] || [],
+                     :color => color,
+                     :wip_limit => 0
+                   } %>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'rally_plugin', :plugin => 'redmine_rally' %>
+  <%= javascript_include_tag 'rally_kanban', :plugin => 'redmine_rally' %>
+<% end %>

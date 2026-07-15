@@ -1,0 +1,213 @@
+<%#
+  Sprints Planning - Full page view
+  Locals from controller: @project, @all_sprints, @selected_sprint, @sprint_issues,
+                          @sprint_progress, @sprint_done_count, @sprint_total_count,
+                          @velocity_data, @members
+-%>
+<div class="rally-page">
+  <div class="rally-header">
+    <h2><%= l(:rally_sprints_title) %> &mdash; <%= @project.name %></h2>
+    <div class="rally-header-actions">
+      <%= render :partial => 'rally/sprint_selector', :locals => {
+            :sprints => @all_sprints,
+            :selected_sprint => @selected_sprint,
+            :project => @project
+          } %>
+      <% if User.current.allowed_to?(:manage_rally, @project) %>
+        <button class="rally-btn rally-btn-primary" onclick="toggleCreateSprint();">
+          + <%= l(:rally_sprints_create_sprint) %>
+        </button>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="rally-body">
+    <%# Create Sprint Form (hidden by default) %>
+    <div id="create-sprint-form" style="display: none; margin-bottom: 20px;">
+      <div class="rally-quick-add-form" style="display: block; animation: none;">
+        <h4 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600;">
+          <%= l(:rally_sprints_create_sprint) %>
+        </h4>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+          <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 12px; font-weight: 600; color: #5e6c84; display: block; margin-bottom: 4px;">
+              <%= l(:rally_sprints_sprint_name) %>
+            </label>
+            <input type="text" id="new-sprint-name" placeholder="Sprint 42" style="width: 100%; padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+          </div>
+          <div style="min-width: 160px;">
+            <label style="font-size: 12px; font-weight: 600; color: #5e6c84; display: block; margin-bottom: 4px;">
+              <%= l(:rally_sprints_start_date) %>
+            </label>
+            <input type="date" id="new-sprint-start" style="width: 100%; padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+          </div>
+          <div style="min-width: 160px;">
+            <label style="font-size: 12px; font-weight: 600; color: #5e6c84; display: block; margin-bottom: 4px;">
+              <%= l(:rally_sprints_end_date) %>
+            </label>
+            <input type="date" id="new-sprint-end" style="width: 100%; padding: 8px 10px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="rally-btn rally-btn-primary" onclick="createSprint();">
+              <%= l(:rally_action_create) %>
+            </button>
+            <button class="rally-btn rally-btn-secondary" onclick="toggleCreateSprint();">
+              <%= l(:rally_action_cancel) %>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if @selected_sprint %>
+      <%# Selected Sprint Detail %>
+      <div class="rally-sprints-container">
+        <%= render :partial => 'rally/sprint_panel',
+                   :locals => {
+                     :sprint => @selected_sprint,
+                     :issues => @sprint_issues,
+                     :progress => @sprint_progress,
+                     :is_active => @selected_sprint.effective_date && @selected_sprint.effective_date >= Date.today,
+                     :velocity_data => @velocity_data,
+                     :members => @members
+                   } %>
+
+        <%# Velocity Chart Area %>
+        <% if @velocity_data.present? %>
+          <div class="rally-chart-container">
+            <h3><%= l(:rally_sprints_velocity_chart) %></h3>
+            <div style="position: relative; height: 220px;">
+              <svg width="100%" height="220" viewBox="0 0 600 200" preserveAspectRatio="none" style="overflow: visible;">
+                <% max_points = [@velocity_data.map { |v| v[:points] }.max, 1].max %>
+                <% bar_width = [500 / [@velocity_data.size, 1].max, 20].min %>
+                <% @velocity_data.each_with_index do |v, i| %>
+                  <% bar_height = (v[:points].to_f / max_points * 160).round %>
+                  <% x = 50 + i * (bar_width + 12) %>
+                  <rect x="<%= x %>" y="<%= 180 - bar_height %>" width="<%= bar_width %>" height="<%= bar_height %>"
+                        fill="#1a73e8" rx="3" opacity="0.85">
+                    <title><%= v[:name] %>: <%= v[:points].round(1) %> pts</title>
+                  </rect>
+                  <text x="<%= x + bar_width / 2 %>" y="<%= 195 %>" text-anchor="middle" font-size="10" fill="#5e6c84" font-family="sans-serif">
+                    <%= truncate(v[:name], :length => 12) %>
+                  </text>
+                  <% if bar_height > 0 %>
+                    <text x="<%= x + bar_width / 2 %>" y="<%= 175 - bar_height %>" text-anchor="middle" font-size="11" fill="#172b4d" font-weight="600" font-family="sans-serif">
+                      <%= v[:points].round(1) %>
+                    </text>
+                  <% end %>
+                <% end %>
+                <%# Y-axis labels %>
+                <text x="40" y="184" text-anchor="end" font-size="10" fill="#97a0af" font-family="sans-serif">0</text>
+                <text x="40" y="104" text-anchor="end" font-size="10" fill="#97a0af" font-family="sans-serif"><%= (max_points / 2).round %></text>
+                <text x="40" y="24" text-anchor="end" font-size="10" fill="#97a0af" font-family="sans-serif"><%= max_points.round %></text>
+                <%# Grid lines %>
+                <line x1="45" y1="180" x2="580" y2="180" stroke="#ebecf0" stroke-width="1"/>
+                <line x1="45" y1="100" x2="580" y2="100" stroke="#ebecf0" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="45" y1="20" x2="580" y2="20" stroke="#ebecf0" stroke-width="1" stroke-dasharray="4,4"/>
+              </svg>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Other Sprints (collapsed) %>
+        <% @all_sprints.each do |sprint| %>
+          <% next if sprint.id == @selected_sprint.id %>
+          <%= render :partial => 'rally/sprint_panel',
+                     :locals => {
+                       :sprint => sprint,
+                       :issues => sprint.fixed_issues.visible.includes(:assigned_to, :tracker, :priority, :status)
+                                                          .order("#{Issue.table_name}.position ASC").to_a,
+                       :progress => 0.0,
+                       :is_active => sprint.effective_date && sprint.effective_date >= Date.today,
+                       :velocity_data => [],
+                       :members => []
+                     } %>
+        <% end %>
+      </div>
+    <% else %>
+      <% if @all_sprints.any? %>
+        <%# No specific sprint selected; show all as panels %>
+        <div class="rally-sprints-container">
+          <% @all_sprints.each do |sprint| %>
+            <% is_active = sprint.effective_date && sprint.effective_date >= Date.today %>
+            <% sprint_issues = sprint.fixed_issues.visible.includes(:assigned_to, :tracker, :priority, :status).order("#{Issue.table_name}.position ASC").to_a %>
+            <% total = sprint_issues.size %>
+            <% done = sprint_issues.select { |i| i.status.is_closed? }.size %>
+            <% progress = total > 0 ? ((done.to_f / total) * 100).round(1) : 0.0 %>
+            <%= render :partial => 'rally/sprint_panel',
+                       :locals => {
+                         :sprint => sprint,
+                         :issues => sprint_issues,
+                         :progress => progress,
+                         :is_active => is_active,
+                         :velocity_data => [],
+                         :members => @members
+                       } %>
+          <% end %>
+        </div>
+      <% else %>
+        <div style="text-align: center; padding: 80px 20px; color: #5e6c84;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🏁</div>
+          <div style="font-size: 16px; margin-bottom: 12px;"><%= l(:rally_sprints_no_sprints) %></div>
+          <% if User.current.allowed_to?(:manage_rally, @project) %>
+            <button class="rally-btn rally-btn-primary" onclick="toggleCreateSprint();">
+              + <%= l(:rally_sprints_create_sprint) %>
+            </button>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag 'rally_plugin', :plugin => 'redmine_rally' %>
+  <%= javascript_include_tag 'rally_kanban', :plugin => 'redmine_rally' %>
+  <script type="text/javascript">
+    function toggleCreateSprint() {
+      var el = document.getElementById('create-sprint-form');
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      if (el.style.display === 'block') {
+        document.getElementById('new-sprint-name').focus();
+      }
+    }
+
+    function createSprint() {
+      var name = document.getElementById('new-sprint-name').value.trim();
+      if (!name) {
+        document.getElementById('new-sprint-name').style.borderColor = '#ff5630';
+        document.getElementById('new-sprint-name').focus();
+        return;
+      }
+
+      var payload = {
+        sprint_name: name,
+        start_date: document.getElementById('new-sprint-start').value,
+        end_date: document.getElementById('new-sprint-end').value
+      };
+
+      fetch('<%= rally_create_sprint_path(@project) %>', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          RallyToast.show(data.message, 'success');
+          setTimeout(function() { window.location.reload(); }, 800);
+        } else {
+          RallyToast.show(data.error || 'Unknown error', 'error');
+        }
+      })
+      .catch(function() {
+        RallyToast.show('Network error', 'error');
+      });
+    }
+  </script>
+<% end %>
